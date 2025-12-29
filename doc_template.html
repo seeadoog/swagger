@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>API 文档</title>
+
+    <style>
+        /* ===== 全局 ===== */
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+            Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 14px;
+            color: #1f2937;
+            background: #ffffff;
+        }
+
+        .container {
+            display: flex;
+        }
+
+        /* ===== 左侧导航 ===== */
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100vh;
+            background: #f1f5f9;
+            border-right: 1px solid #e5e7eb;
+            padding: 20px 16px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .nav-header {
+            margin-bottom: 20px;
+        }
+
+        .nav-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .nav-subtitle {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .nav-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #334155;
+            font-size: 13px;
+            position: relative;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .nav-item::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 6px;
+            bottom: 6px;
+            width: 3px;
+            border-radius: 2px;
+            background: transparent;
+        }
+
+        .nav-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #94a3b8;
+        }
+
+        .nav-item:hover {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .nav-item:hover::before {
+            background: #0ea5e9;
+        }
+
+        .nav-item:hover .nav-dot {
+            background: #0ea5e9;
+        }
+
+        /* ===== 右侧内容 ===== */
+        .content {
+            margin-left: 280px;
+            padding: 24px 36px;
+            width: calc(100% - 280px);
+        }
+
+        .api {
+            margin-bottom: 56px;
+            scroll-margin-top: 20px;
+        }
+
+        .api-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 24px 0 8px;
+            color: #0f172a;
+        }
+
+        .api-desc {
+            margin-bottom: 12px;
+            color: #475569;
+        }
+
+        /* ===== code ===== */
+        pre {
+            background: #0f172a;
+            color: #e5e7eb;
+            padding: 12px 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+
+        pre code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        /* ===== 表格 ===== */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0 24px;
+            font-size: 13px;
+        }
+
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 8px 10px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #334155;
+            white-space: nowrap;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #fafafa;
+        }
+
+        tbody tr:hover {
+            background: #f1f5f9;
+        }
+
+        /* ===== 小标题 ===== */
+        .section-title {
+            margin: 18px 0 6px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .code-wrapper {
+            position: relative;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.12);
+            color: #e5e7eb;
+            backdrop-filter: blur(4px);
+            display: none;
+        }
+
+        .code-wrapper:hover .copy-btn {
+            display: inline-block;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        .max-40 {
+            max-width: 40%;
+            width: 35%;
+        }
+    </style>
+</head>
+<script>
+    function copyCode(btn) {
+        const code = btn.nextElementSibling.innerText;
+
+        navigator.clipboard.writeText(code).then(() => {
+            const old = btn.innerText;
+            btn.innerText = "已复制";
+            btn.disabled = true;
+
+            setTimeout(() => {
+                btn.innerText = old;
+                btn.disabled = false;
+            }, 1200);
+        });
+    }
+</script>
+<body>
+
+<div class="container">
+
+    <!-- 左侧导航 -->
+    <nav class="nav">
+        <div class="nav-header">
+            <div class="nav-title">API 文档</div>
+        </div>
+
+        <div class="nav-list">
+            {{ range $_, $api := . }}
+            <a class="nav-item" href="#api-{{ $api.Api.Title }}">
+                <span class="nav-dot"></span>
+                <span>{{ $api.Api.Title }}</span>
+            </a>
+            {{ end }}
+        </div>
+    </nav>
+
+    <!-- 右侧内容 -->
+    <main class="content">
+
+        {{ range $_, $api := . }}
+
+        <div class="api" id="api-{{ $api.Api.Title }}">
+
+            <div class="api-title">
+                {{ $api.Api.Title }}
+            </div>
+
+            <div class="api-desc">
+                {{ $api.Api.Description }}
+            </div>
+
+            <pre><code>{{ $api.Api.Method }} {{ $api.Api.Route }}</code></pre>
+
+            <div class="section-title">请求说明</div>
+            <table>
+                <thead>
+                <tr>
+                    <th>参数名称</th>
+                    <th>参数类型</th>
+                    <th>取值范围</th>
+<!--                    <th>必要性</th>-->
+                    <th>参数位置</th>
+                    <th>默认值</th>
+                    <th>约束</th>
+                    <th class="max-40">描述</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{ range $_, $f := $api.Req }}
+                <tr>
+                    <td>{{ $f.Field }}</td>
+                    <td>{{ $f.Type }}</td>
+                    <td>{{ $f.Enum }}</td>
+<!--                    <td>{{ $f.Required }}</td>-->
+                    <td>{{ $f.Location }}</td>
+                    <td>{{ $f.Default }}</td>
+                    <td>{{ $f.Binding }}</td>
+                    <td>{{ $f.Description }}</td>
+                </tr>
+                {{ end }}
+                </tbody>
+            </table>
+
+            <div class="section-title">请求示例</div>
+            <pre><code>{{ $api.ReqExample }}</code></pre>
+
+            <div class="section-title">响应示例</div>
+<!--            <pre><code>{{ $api.ResExample }}</code></pre>-->
+            <div class="code-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                <pre><code>{{ $api.ResExample }}</code></pre>
+            </div>
+            <div class="section-title">响应说明</div>
+            <table>
+                <thead>
+                <tr>
+                    <th>参数名称</th>
+                    <th>参数类型</th>
+                    <th>取值范围</th>
+
+                    <th>描述</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{ range $_, $f := $api.Res }}
+                <tr>
+                    <td>{{ $f.Field }}</td>
+                    <td>{{ $f.Type }}</td>
+                    <td>{{ $f.Enum }}</td>
+                    <td>{{ $f.Description }}</td>
+                </tr>
+                {{ end }}
+                </tbody>
+            </table>
+
+        </div>
+
+        {{ end }}
+
+    </main>
+
+</div>
+
+</body>
+</html>
