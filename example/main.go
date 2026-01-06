@@ -61,6 +61,13 @@ func main() {
 
 	a := apiHandler{}
 
+	hd := &handlers{}
+
+	//swagger.RegisterApiTemplate(apiGroup, userGroup, hd.ApiGetUser())
+
+	apiGroup.RegisterAllApi(ginEngine, hd, func(funcName string) bool {
+		return true
+	})
 	swagger.RegisterAPIWithDoc(apiGroup, userGroup, "GET", "/dics/:doc_name", a.HandlerDocumentHtml, "get doc", "get doc")
 	ginEngine.GET("/apidoc.html", apiGroup.HandlerDocumentHtml())
 	ginEngine.GET("/apidoc.md", apiGroup.HandlerDocumentMd())
@@ -90,5 +97,78 @@ func (a *apiHandler) HandlerDocumentHtml(ctx *gin.Context, req *struct {
 }) *documentResponse {
 	return &documentResponse{
 		Req: req,
+	}
+}
+
+type handlers struct {
+}
+
+func (h *handlers) ApiGetUser() any {
+	type request struct {
+		Username string `json:"username" example:"user01" location:"path,username"`
+	}
+	type response struct {
+		Data *request `json:"data"`
+	}
+
+	return swagger.ApiTemplate[request, response]{
+		Title:       "get user",
+		Description: "get user",
+		Method:      "GET",
+		Path:        "/sapi/users/:username",
+		Handler: func(ctx *gin.Context, req *request) *response {
+
+			return &response{
+				Data: req,
+			}
+		},
+	}
+}
+
+func (h *handlers) CreateGetUser() any {
+	type request struct {
+		Username string `json:"username" example:"user01" location:"path,username"`
+	}
+	type response struct {
+		Data *request `json:"data"`
+	}
+
+	return swagger.ApiTemplate[request, response]{
+		Title:       "get user",
+		Description: "get user",
+		Method:      "POST",
+		Path:        "/sapi/users",
+		Handler: func(ctx *gin.Context, req *request) *response {
+
+			return &response{
+				Data: req,
+			}
+		},
+	}
+}
+
+type request struct {
+	Username *string `json:"username" example:"user01" location:"json,username" desc:"this use username"`
+	Xttl     *int64  `location:"header,x-ttl" example:"100" desc:"req ttl"`
+	IsUsed   *bool   `location:"query,is-used" example:"true" desc:"req is-used"`
+}
+
+type response struct {
+	Data *request `json:"data" desc:"data"`
+}
+
+func (h *handlers) CreateGetUser3() swagger.ApiTemplate[request, response] {
+
+	return swagger.ApiTemplate[request, response]{
+		Title:       "get user",
+		Description: "get user",
+		Method:      "POST",
+		Path:        "/bapi/users",
+		Handler: func(ctx *gin.Context, req *request) *response {
+
+			return &response{
+				Data: req,
+			}
+		},
 	}
 }

@@ -158,8 +158,31 @@ type BasicRouter interface {
 	gin.IRouter
 }
 
+func (a *ApiGroup) RegisterGin(router BasicRouter, reqTemplate any, resTemplate any, method, pth string, handler gin.HandlerFunc, opts ...OptFunc) *Api {
+	a.testValidate(reqTemplate)
+	rsc := generateSchema(reflect.ValueOf(reqTemplate), "")
+	api := &Api{
+		Request:  reqTemplate,
+		Response: resTemplate,
+
+		Method:         method,
+		RequestSchema:  rsc,
+		ResponseSchema: generateSchema(reflect.ValueOf(resTemplate), ""),
+	}
+	for _, opt := range opts {
+		opt(api)
+	}
+	rsc.Description = api.Description
+
+	router.Handle(method, pth, a.schemaHandler(api), handler)
+	api.Route = path.Join(router.BasePath(), pth)
+	a.apis = append(a.apis, api)
+	return api
+}
+
 func RegisterAPI[Req, Resp any](r *ApiGroup, router BasicRouter, method, pth string, handler Handler[Req, Resp], opts ...OptFunc) {
 
+	//r.RegisterGin(router,new(Req),new(Resp),method,pth, WrapHandler[Req, Resp](r, handler, r.ErrHandler))
 	r.testValidate(new(Req))
 	rsc := generateSchema(reflect.ValueOf(new(Req)), "")
 	a := &Api{

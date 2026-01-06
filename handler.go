@@ -10,25 +10,26 @@ type Handler[Req, Resp any] func(ctx *gin.Context, req *Req) *Resp
 
 type ErrHandler func(ctx *gin.Context, err error)
 
+func defaultErrHandler(ctx *gin.Context, err error) {
+	ss := []string{}
+	es, ok := err.(validator.ValidationErrors)
+	if ok {
+		for _, e := range es {
+			ss = append(ss, FormatValidatorError(e))
+		}
+	}
+
+	errmsg := ""
+	if len(ss) > 0 {
+		errmsg = strings.Join(ss, ",")
+	} else {
+		errmsg = err.Error()
+	}
+	abortWithStatusJson(ctx, 400, gin.H{"error": errmsg})
+}
 func WrapHandler[Req, Resp any](a *ApiGroup, hd Handler[Req, Resp], errHandler ErrHandler) gin.HandlerFunc {
 	if errHandler == nil {
-		errHandler = func(ctx *gin.Context, err error) {
-			ss := []string{}
-			es, ok := err.(validator.ValidationErrors)
-			if ok {
-				for _, e := range es {
-					ss = append(ss, FormatValidatorError(e))
-				}
-			}
-
-			errmsg := ""
-			if len(ss) > 0 {
-				errmsg = strings.Join(ss, ",")
-			} else {
-				errmsg = err.Error()
-			}
-			abortWithStatusJson(ctx, 400, gin.H{"error": errmsg})
-		}
+		errHandler = defaultErrHandler
 	}
 
 	return func(ctx *gin.Context) {

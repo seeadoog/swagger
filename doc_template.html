@@ -235,7 +235,7 @@
             {{ range $index, $api := . }}
             <a class="nav-item" href="#api-{{ $index }}">
                 <span class="nav-dot"></span>
-                <span>{{ $api.Api.Title }}</span>
+                <span> {{$index}} {{ $api.Api.Title }}</span>
             </a>
             {{ end }}
         </div>
@@ -249,7 +249,7 @@
         <div class="api" id="api-{{ $index }}">
 
             <div class="api-title">
-                {{ $api.Api.Title }}
+                {{$index}} {{$api.Api.Title }}
             </div>
 
             <div class="api-desc">
