@@ -26,6 +26,9 @@ func generateFromTemplate(api []*Api, tlp string) string {
 
 	apidocs := []*apiDoc{}
 	for _, a := range api {
+		if a.unexported {
+			continue
+		}
 		apidocs = append(apidocs, &apiDoc{
 			Api: a,
 			Req: a.RequestSchema.Doc(),
@@ -42,6 +45,23 @@ func generateFromTemplate(api []*Api, tlp string) string {
 				return fmt.Sprintf("%s %s%s\n\n", a.Method, a.RequestSchema.generateExamplePath(a.Route), query) + body
 			}(),
 			ResExample: a.ResponseSchema.GenExampleJson(),
+			ReqBodyExample: func() string {
+				body := a.RequestSchema.GenExampleJson()
+				if body == "{}" {
+					return ""
+				}
+				return body
+			}(),
+			ReqRequestLineExample: func() string {
+				query := strings.Join(a.RequestSchema.genExampleQuery(), "&")
+				if query != "" {
+					query = "?" + query
+				}
+				return fmt.Sprintf("%s %s%s", a.Method, a.RequestSchema.generateExamplePath(a.Route), query)
+			}(),
+			ReqHeaderExample: func() string {
+				return strings.Join(a.RequestSchema.genExampleHeader(), "\n")
+			}(),
 		})
 	}
 	t, err := template.New("swagger").Parse(tlp)
@@ -57,12 +77,16 @@ func generateFromTemplate(api []*Api, tlp string) string {
 }
 
 type apiDoc struct {
-	Id         string
-	Api        *Api
-	ReqExample any
-	ResExample any
-	Req        []*FiledDoc
-	Res        []*FiledDoc
+	Id                    string
+	Api                   *Api
+	ReqExample            any
+	ReqBodyExample        any
+	ReqRequestLineExample string
+	ReqHeaderExample      string
+	ResExample            any
+
+	Req []*FiledDoc
+	Res []*FiledDoc
 }
 
 type FiledDoc struct {

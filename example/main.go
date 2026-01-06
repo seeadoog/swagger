@@ -6,16 +6,17 @@ import (
 )
 
 type Child struct {
-	Name string `json:"name" desc:"name of user"`
-	Age  int    `json:"age"`
+	Name  string  `json:"name" desc:"name of user"`
+	Age   int     `json:"age"`
+	Point float32 `json:"point" example:"1.1" binding:"min=0,max=5" default:"1.4" desc:"point of user"`
 }
 type createUserRequest struct {
 	Username string         `json:"username" required:"true" example:"user01" binding:"required" desc:"user，username for creating a new user,user，username for creating a new user,user，username for creating a new user,user，username for creating a new user,user，username for creating a new user,user，username for creating a new user,user，username for creating a new user" `
 	Password string         `json:"password" required:"true" example:"12345678" desc:"password for creating a new user"`
 	Class    *string        `json:"class" required:"true" enum:"1,2,3,4,5,6" example:"userClass" default:"2"  desc:"class for creating a new user"`
 	Children []*Child       `json:"children" required:"true" desc:"children for creating a new user"`
-	Tags     map[string]any `json:"tags" required:"true" desc:"tags for creating a new user" example:"{}"`
-	Email    string         `json:"email" binding:"required,email" example:"user01@example.com" desc:"email of user"`
+	Tags     map[string]any `json:"tags" required:"true" desc:"tags for creating a new user" example:"{}" location:"header"`
+	Email    string         `json:"email" binding:"required,email" example:"user01@example.com" desc:"email of user" location:"query"`
 }
 
 func (c *createUserRequest) Validate(ctx swagger.ValidateCtx) swagger.ValidateFuncs {
@@ -25,6 +26,15 @@ func (c *createUserRequest) Validate(ctx swagger.ValidateCtx) swagger.ValidateFu
 		ctx.MinLength("password", c.Password, 8),
 		ctx.StrIn("class", swagger.PtrVal(c.Class), "1", "2", "3"),
 	}
+}
+
+type getUserRequest struct {
+	Username string `json:"username" required:"true" example:"user01" location:"path,username"`
+	Class    string `json:"class" required:"true" example:"class1" location:"query,class"`
+	Level    int    `json:"level" required:"true" example:"1" location:"query,level"`
+}
+type Resp[T any] struct {
+	Data T `json:"data"`
 }
 
 func main() {
@@ -40,22 +50,45 @@ func main() {
 		Data    *createUserRequest `json:"data"`
 	}
 	swagger.RegisterAPI(apiGroup, userGroup, "POST", "", func(ctx *gin.Context, req *createUserRequest) *createUserResponse {
-		return &createUserResponse{
-			Data: req,
-		}
-	}, swagger.WithTitle("create_user"), swagger.WithDescription("create_user"))
+		return &createUserResponse{Data: req}
+	},
+		swagger.WithTitle("create_user"), swagger.WithDescription("create_user"))
 
-	type getUserRequest struct {
-		Username string `json:"username" required:"true" example:"user01" location:"path,username"`
-		Class    string `json:"class" required:"true" example:"class1" location:"query,class"`
-		Level    int    `json:"level" required:"true" example:"1" location:"query,level"`
-	}
-	swagger.RegisterAPI(apiGroup, userGroup, "GET", ":username", func(ctx *gin.Context, req *getUserRequest) *createUserResponse {
-		return &createUserResponse{}
-	}, swagger.WithTitle("get_user"), swagger.WithDescription("get_user"))
+	swagger.RegisterAPI(apiGroup, userGroup, "GET", ":username", func(ctx *gin.Context, req *getUserRequest) *createUserResponse { return &createUserResponse{} },
+		swagger.WithTitle("get_user"), swagger.WithDescription("get_user"), swagger.WithUnExported())
 
+	swagger.RegisterAPIWithDoc(apiGroup, userGroup, "POST", "/df", HandlerCreateUser, "create_user", "create user")
+
+	a := apiHandler{}
+
+	swagger.RegisterAPIWithDoc(apiGroup, userGroup, "GET", "/dics/:doc_name", a.HandlerDocumentHtml, "get doc", "get doc")
 	ginEngine.GET("/apidoc.html", apiGroup.HandlerDocumentHtml())
 	ginEngine.GET("/apidoc.md", apiGroup.HandlerDocumentMd())
-
+	ginEngine.GET("/apischema", apiGroup.HandlerAllApiSchemas())
 	ginEngine.Run(":8902")
+}
+
+func HandlerCreateUser(ctx *gin.Context, req *struct {
+	Name  string `json:"name" binding:"required" example:"user01" desc:"name of user"`
+	Age   int    `json:"age" binding:"required,max=100,min=18" example:"18" desc:"age of user"`
+	Class int    `json:"class" binding:"required,max=20,min=1" example:"13" desc:"class for creating a new user,class"`
+}) *Resp[any] {
+
+	return &Resp[any]{Data: req}
+}
+
+type apiHandler struct {
+}
+
+type documentResponse struct {
+	Req any
+}
+
+func (a *apiHandler) HandlerDocumentHtml(ctx *gin.Context, req *struct {
+	DocName string `location:"path,doc_name" example:"doc01" desc:"doc name"`
+	Ttl     string `location:"header,x-ttl" example:"100s" desc:"req ttl"`
+}) *documentResponse {
+	return &documentResponse{
+		Req: req,
+	}
 }

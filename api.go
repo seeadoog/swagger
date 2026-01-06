@@ -6,8 +6,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"io"
+	"os"
 	"path"
 	"reflect"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -37,12 +39,25 @@ type Api struct {
 	RequestSchema  *Schema                         `json:"request_schema,omitempty"`
 	ResponseSchema *Schema                         `json:"response_schema,omitempty"`
 	ErrHandler     func(c *gin.Context, err error) `json:"-"`
+	unexported     bool
 }
 
 type ApiGroup struct {
 	apis []*Api
 
 	vad *validator.Validate
+}
+
+func (a *ApiGroup) testValidate(req any) {
+	defer func() {
+		if err := recover(); err != nil {
+			stack := string(debug.Stack())
+			fmt.Fprintf(os.Stderr, "request binding tag is invalid:%s %v \n %s", reflect.TypeOf(req).String(), err, stack)
+			os.Exit(1)
+		}
+	}()
+	_ = a.vad.Struct(req)
+
 }
 
 func (a *ApiGroup) initValidator() {
@@ -74,7 +89,7 @@ func boolOfStr(s string) bool {
 func (a *ApiGroup) schemaHandler(api *Api) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if boolOfStr(c.Query("get_schema")) {
-			c.AbortWithStatusJSON(200, api)
+			abortWithStatusJson(c, 200, api)
 			return
 		}
 		c.Next()
@@ -99,6 +114,13 @@ func (a *ApiGroup) HandlerDocumentHtml() gin.HandlerFunc {
 	}
 }
 
+func (a *ApiGroup) HandlerAllApiSchemas() gin.HandlerFunc {
+
+	return func(c *gin.Context) {
+		abortWithStatusJson(c, 200, a.apis)
+	}
+}
+
 type OptFunc func(o *Api)
 
 func WithDescription(desc string) OptFunc {
@@ -119,6 +141,12 @@ func WithErrHandler(f func(c *gin.Context, err error)) OptFunc {
 	}
 }
 
+func WithUnExported() OptFunc {
+	return func(o *Api) {
+		o.unexported = true
+	}
+}
+
 func NewAPIGroup() *ApiGroup {
 	a := &ApiGroup{}
 	a.initValidator()
@@ -131,6 +159,8 @@ type BasicRouter interface {
 }
 
 func RegisterAPI[Req, Resp any](r *ApiGroup, router BasicRouter, method, pth string, handler Handler[Req, Resp], opts ...OptFunc) {
+
+	r.testValidate(new(Req))
 	rsc := generateSchema(reflect.ValueOf(new(Req)), "")
 	a := &Api{
 		Request:  new(Req),
@@ -150,6 +180,11 @@ func RegisterAPI[Req, Resp any](r *ApiGroup, router BasicRouter, method, pth str
 	r.apis = append(r.apis, a)
 }
 
+func RegisterAPIWithDoc[Req, Resp any](r *ApiGroup, router BasicRouter, method, pth string, handler Handler[Req, Resp], title string, desc string, opts ...OptFunc) {
+	opts = append(opts, WithDescription(desc), WithTitle(title))
+	RegisterAPI(r, router, method, pth, handler, opts...)
+}
+
 func bindRequest(r *ApiGroup, ctx *gin.Context, req any) error {
 
 	bytes, err := io.ReadAll(ctx.Request.Body)
@@ -157,10 +192,10 @@ func bindRequest(r *ApiGroup, ctx *gin.Context, req any) error {
 		return err
 	}
 
-	if len(bytes) > 0 {
+	if len(bytes) > 0 || ctx.ContentType() == "application/json" {
 		err = json.Unmarshal(bytes, req)
 		if err != nil {
-			return fmt.Errorf("json unmarshal error: %w", err)
+			return fmt.Errorf("unmarshal body as json error: %w", err)
 		}
 	}
 
@@ -224,6 +259,8 @@ func bindPath(ctx *gin.Context, v reflect.Value) error {
 				val = ctx.Param(name)
 			case "query":
 				val = ctx.Query(name)
+			case "header":
+				val = ctx.GetHeader(name)
 			case "", "json":
 				if (fv.Kind() == reflect.Ptr && field.Type.Elem().Kind() == reflect.Struct) || field.Type.Kind() == reflect.Struct {
 					err := bindPath(ctx, fv)
@@ -412,33 +449,46 @@ func generateSchema(v reflect.Value, tags reflect.StructTag) *Schema {
 			Type: "string",
 			Enum: getEnumsFromTag(tags),
 		}
+	case reflect.Interface:
+		return &Schema{
+			Type: "any",
+		}
 	}
 	panic(fmt.Errorf("unsupported type when gen schema: %s", v.Type()))
 	return nil
 }
 
+var (
+	priority = map[string]int{
+		"path":   100,
+		"query":  90,
+		"header": 80,
+	}
+)
+
 func (s *Schema) Doc() []*FiledDoc {
 	docs := s.toDoc("")
 
 	sort.Slice(docs, func(i, j int) bool {
-		if docs[i].Location == "path" && docs[j].Location == "path" {
-			return docs[i].Field < docs[j].Field
+
+		pi := priority[docs[i].Location]
+		pj := priority[docs[j].Location]
+
+		if pi > 0 && pj > 0 {
+			if pi == pj {
+				return docs[i].Field < docs[j].Field
+			}
+			return pi > pj
 		}
-		if docs[i].Location == "path" {
+
+		if pi > 0 {
 			return true
 		}
-		if docs[j].Location == "path" {
+
+		if pj > 0 {
 			return false
 		}
-		if docs[i].Location == "query" && docs[j].Location == "query" {
-			return docs[i].Field < docs[j].Field
-		}
-		if docs[i].Location == "query" {
-			return true
-		}
-		if docs[j].Location == "query" {
-			return false
-		}
+
 		return docs[i].Field < docs[j].Field
 	})
 	return docs
@@ -497,6 +547,7 @@ func (s *Schema) GenExampleJson() string {
 func (s *Schema) genExampleQuery() []string {
 	res := []string{}
 	for name, schema := range s.Properties {
+		res = append(res, schema.genExampleQuery()...)
 		if schema.Location == "query" {
 			ex := schema.getExample()
 			if ex != "" && ex != "-" {
@@ -509,13 +560,29 @@ func (s *Schema) genExampleQuery() []string {
 	return res
 }
 
+func (s *Schema) genExampleHeader() []string {
+	res := []string{}
+	for name, schema := range s.Properties {
+		res = append(res, schema.genExampleHeader()...)
+		if schema.Location == "header" {
+			ex := schema.getExample()
+			if ex != "" && ex != "-" {
+				res = append(res, name+": "+ex)
+			}
+		}
+
+	}
+	sort.Strings(res)
+	return res
+}
+
 func (s *Schema) GenExample() any {
 
 	switch s.Type {
 	case "object":
 		m := make(map[string]any)
 		for name, schema := range s.Properties {
-			if schema.Location == "path" || schema.Location == "query" {
+			if schema.Location == "path" || schema.Location == "query" || schema.Location == "header" {
 				continue
 			}
 			exp := schema.GenExample()

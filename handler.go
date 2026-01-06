@@ -27,7 +27,7 @@ func WrapHandler[Req, Resp any](a *ApiGroup, hd Handler[Req, Resp], errHandler E
 			} else {
 				errmsg = err.Error()
 			}
-			ctx.AbortWithStatusJSON(400, gin.H{"error": errmsg})
+			abortWithStatusJson(ctx, 400, gin.H{"error": errmsg})
 		}
 	}
 
@@ -46,8 +46,19 @@ func WrapHandler[Req, Resp any](a *ApiGroup, hd Handler[Req, Resp], errHandler E
 		if ctx.IsAborted() {
 			return
 		}
-		ctx.AbortWithStatusJSON(200, res)
+
+		abortWithStatusJson(ctx, 200, res)
 	}
+}
+
+func abortWithStatusJson(ctx *gin.Context, statusCode int, msg any) {
+	ctx.Writer.WriteHeader(statusCode)
+	bs, err := JsonMarshal(msg)
+	if err != nil {
+		panic(err)
+	}
+	ctx.Writer.Write(bs)
+	ctx.Abort()
 }
 
 type HandlerChain[Req, Resp any] struct {

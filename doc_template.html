@@ -232,8 +232,8 @@
         </div>
 
         <div class="nav-list">
-            {{ range $_, $api := . }}
-            <a class="nav-item" href="#api-{{ $api.Api.Title }}">
+            {{ range $index, $api := . }}
+            <a class="nav-item" href="#api-{{ $index }}">
                 <span class="nav-dot"></span>
                 <span>{{ $api.Api.Title }}</span>
             </a>
@@ -244,9 +244,9 @@
     <!-- 右侧内容 -->
     <main class="content">
 
-        {{ range $_, $api := . }}
+        {{ range $index, $api := . }}
 
-        <div class="api" id="api-{{ $api.Api.Title }}">
+        <div class="api" id="api-{{ $index }}">
 
             <div class="api-title">
                 {{ $api.Api.Title }}
@@ -288,11 +288,26 @@
                 </tbody>
             </table>
 
-            <div class="section-title">请求示例</div>
-            <pre><code>{{ $api.ReqExample }}</code></pre>
+            <div class="section-title">请求url示例</div>
+            <pre><code>{{ $api.ReqRequestLineExample }}</code></pre>
 
+            {{if $api.ReqHeaderExample}}
+            <div class="section-title">请求header示例</div>
+            <div class="code-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                <pre><code>{{ $api.ReqHeaderExample }}</code></pre>
+            </div>
+            {{end}}
+
+            {{if $api.ReqBodyExample}}
+            <div class="section-title">请求body示例</div>
+            <div class="code-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                <pre><code  class="language-json">{{ $api.ReqBodyExample }}</code></pre>
+            </div>
+            {{end}}
             <div class="section-title">响应示例</div>
-<!--            <pre><code>{{ $api.ResExample }}</code></pre>-->
+<!--            <pre><code>{{ $api.ResExample }}</code></pre>   contenteditable="true" ReqHeaderExample-->
             <div class="code-wrapper">
                 <button class="copy-btn" onclick="copyCode(this)">复制</button>
                 <pre><code>{{ $api.ResExample }}</code></pre>
