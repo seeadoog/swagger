@@ -148,12 +148,13 @@ func (h *handlers) CreateGetUser() any {
 }
 
 type request struct {
-	Username *string `json:"username" example:"user01" location:"json,username" desc:"this use username"`
-	Xttl     *int64  `location:"header,x-ttl" example:"100" desc:"req ttl"`
-	IsUsed   *bool   `location:"query,is-used" example:"true" desc:"req is-used"`
+	Username string `json:"username" example:"user01" location:"json,username" binding:"max=5"  desc:"this use username"`
+	Xttl     *int64 `location:"header,x-ttl" example:"100" desc:"req ttl"`
+	IsUsed   *bool  `location:"query,is-used" example:"true" desc:"req is-used"`
 }
 
 type response struct {
+	Code int      `json:"code" example:"0" enum:"10303,10404,10405" desc:"response code , 0 indicates success,10303: not found 10404: nvnd"`
 	Data *request `json:"data" desc:"data"`
 }
 

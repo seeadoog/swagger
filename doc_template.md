@@ -1,6 +1,6 @@
 
-{{range $_,$api := .}}
-#### {{ $api.Api.Title }}
+{{range $index,$api := .}}
+#### {{$index}} {{ $api.Api.Title }}
 {{$api.Api.Description}}
 
 ````
@@ -12,11 +12,26 @@
 |-------|-------|------|-----|-------|-----|----|{{ range $_,$f := $api.Req }}
 |{{$f.Field}}|{{$f.Type}}|{{$f.Enum}}|{{$f.Required}}|{{$f.Location}}|{{$f.Default}}|{{$f.Description}}|{{end}}
 
-**请求示例**
-```` 
-{{$api.ReqExample}}
-````
+**请求URL示例**
 
+```` 
+{{$api.ReqRequestLineExample}}
+````
+{{if $api.ReqBodyExample}}
+**请求header示例**
+
+````
+{{ $api.ReqHeaderExample }}
+````
+{{end}}
+
+{{if $api.ReqBodyExample}}
+**请求body示例**
+
+````
+{{ $api.ReqBodyExample }}
+````
+{{end}}
 **响应示例**
 
 ````
@@ -26,6 +41,5 @@
 |参数名称|参数类型|取值范围|描述|
 |-------|-------|------|----|{{ range $_,$f := $api.Res }}
 |{{$f.Field}}|{{$f.Type}}|{{$f.Enum}}|{{$f.Description}}|{{end}}
-
 
 {{end}}
